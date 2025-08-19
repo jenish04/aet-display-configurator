@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Download, FileText, FileSpreadsheet, Box } from "lucide-react";
+import { downloadPDF, downloadExcel, downloadCAD, type ConfigData, type SpecificationData } from "@/utils/exportUtils";
 
 interface ConfigurationPanelProps {
   onConfigChange: (config: any) => void;
@@ -18,7 +20,7 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
   const [showOptical, setShowOptical] = useState(false);
   const [showPerson, setShowPerson] = useState(true);
   const [contentImage, setContentImage] = useState("None");
-  const [activeTab, setActiveTab] = useState("PANEL GRID");
+  const [activeTab] = useState("PANEL GRID");
 
   const products = [
     "ZRD-BH12D", "ZRD-BH15D", "ZRD-CH12D", "ZRD-CH15D", 
@@ -47,16 +49,58 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
     });
   };
 
+  const handleDownload = (type: 'pdf' | 'excel' | 'cad') => {
+    const config: ConfigData = {
+      product,
+      configMethod,
+      unit,
+      width,
+      height,
+      showOptical,
+      showPerson,
+      contentImage,
+      activeTab
+    };
+
+    // Calculate specifications
+    const panelWidth = unit === "Feet" ? 2.0 : 0.61;
+    const panelHeight = unit === "Feet" ? 1.125 : 0.34;
+    const totalWidth = width * panelWidth;
+    const totalHeight = height * panelHeight;
+    
+    const specs: SpecificationData = {
+      totalPanels: width * height,
+      totalWidth: unit === "Feet" ? `${totalWidth.toFixed(2)} ft` : `${totalWidth.toFixed(2)} m`,
+      totalHeight: unit === "Feet" ? `${totalHeight.toFixed(2)} ft` : `${totalHeight.toFixed(2)} m`,
+      resolution: `${width * 1920} × ${height * 1080}`, // Assuming 1920x1080 per panel
+      pixelPitch: "1.26mm",
+      weight: `${(width * height * 45).toFixed(0)} kg`, // Estimated 45kg per panel
+      powerConsumption: `${(width * height * 250).toFixed(0)}W` // Estimated 250W per panel
+    };
+
+    switch (type) {
+      case 'pdf':
+        downloadPDF(config, specs);
+        break;
+      case 'excel':
+        downloadExcel(config, specs);
+        break;
+      case 'cad':
+        downloadCAD(config, specs);
+        break;
+    }
+  };
+
   // Call handleConfigChange whenever any config changes
   useState(() => {
     handleConfigChange();
   });
 
   return (
-    <div className="bg-gray-100 p-6 w-80 space-y-6">
+    <div className="bg-muted p-6 w-80 space-y-6 font-sans">
       {/* Product Selection */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Product</Label>
+        <Label className="text-sm font-semibold text-foreground">Product</Label>
         <Select value={product} onValueChange={(value) => {
           setProduct(value);
           handleConfigChange();
@@ -74,7 +118,7 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
 
       {/* Configuration Method */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Configuration Method</Label>
+        <Label className="text-sm font-semibold text-foreground">Configuration Method</Label>
         <div className="flex">
           <Button
             variant={configMethod === "Columns / Rows" ? "default" : "outline"}
@@ -103,7 +147,7 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
 
       {/* Unit of Measurement */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Unit of Measurement</Label>
+        <Label className="text-sm font-semibold text-foreground">Unit of Measurement</Label>
         <div className="flex">
           <Button
             variant={unit === "Feet" ? "default" : "outline"}
@@ -132,7 +176,7 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
 
       {/* Number of CLED Cabinets */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Number of CLED Cabinets (Width × Height)</Label>
+        <Label className="text-sm font-semibold text-foreground">Number of CLED Cabinets (Width × Height)</Label>
         <div className="flex items-center space-x-2">
           <Input
             type="number"
@@ -143,7 +187,7 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
             }}
             className="w-16"
             min={1}
-            max={20}
+            max={80}
           />
           <span>×</span>
           <Input
@@ -155,35 +199,14 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
             }}
             className="w-16"
             min={1}
-            max={20}
+            max={80}
           />
         </div>
       </div>
 
-      {/* Tab Selection */}
-      <div className="flex">
-        <Button
-          variant={activeTab === "PANEL GRID" ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("PANEL GRID");
-            handleConfigChange();
-          }}
-          className="rounded-r-none"
-        >
-          PANEL GRID
-        </Button>
-        <Button
-          variant={activeTab === "CABLING" ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("CABLING");
-            handleConfigChange();
-          }}
-          className="rounded-l-none"
-        >
-          CABLING
-        </Button>
+      {/* Active Tab Display - Panel Grid Only */}
+      <div className="p-3 bg-primary text-primary-foreground rounded text-center font-semibold">
+        PANEL GRID
       </div>
 
       {/* Display Options */}
@@ -219,7 +242,7 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
 
       {/* Content Image */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Content Image</Label>
+        <Label className="text-sm font-semibold text-foreground">Content Image</Label>
         <Select value={contentImage} onValueChange={(value) => {
           setContentImage(value);
           handleConfigChange();
@@ -236,23 +259,38 @@ const ConfigurationPanel = ({ onConfigChange }: ConfigurationPanelProps) => {
       </div>
 
       {/* Export Buttons */}
-      <div className="space-y-2 pt-4">
-        <Button variant="outline" className="w-full justify-start">
+      <div className="space-y-3 pt-4">
+        <Button 
+          variant="outline" 
+          className="w-full justify-start gap-2 font-semibold"
+          onClick={() => handleDownload('pdf')}
+        >
+          <FileText className="w-4 h-4" />
           Configuration (PDF)
         </Button>
-        <Button variant="outline" className="w-full justify-start">
-          Configuration (CSV)
+        <Button 
+          variant="outline" 
+          className="w-full justify-start gap-2 font-semibold"
+          onClick={() => handleDownload('excel')}
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          Configuration (Excel)
         </Button>
-        <Button variant="outline" className="w-full justify-start">
+        <Button 
+          variant="outline" 
+          className="w-full justify-start gap-2 font-semibold"
+          onClick={() => handleDownload('cad')}
+        >
+          <Box className="w-4 h-4" />
           Product CAD data
         </Button>
       </div>
 
       {/* Link Section */}
-      <div className="pt-4 border-t">
-        <h4 className="font-medium mb-2">Link</h4>
-        <p className="text-sm text-gray-600 mb-2">Mounting System</p>
-        <Button variant="link" className="p-0 h-auto text-blue-600">
+      <div className="pt-4 border-t border-border">
+        <h4 className="font-semibold mb-2 text-foreground">Link</h4>
+        <p className="text-sm text-muted-foreground mb-2">Mounting System</p>
+        <Button variant="link" className="p-0 h-auto text-primary font-semibold">
           Link to PEERLESS-AV site
         </Button>
       </div>
